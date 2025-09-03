@@ -62,7 +62,7 @@ Database schema:
    - Gender (NVARCHAR)
    - DOB (DATE)
    - Diagnosis (NVARCHAR)
-   - RiskFactor (NVARCHAR)
+   - RiskFlag (NVARCHAR)
    - LastVisitDate (DATE)
 
 2. PatientNotes
@@ -105,7 +105,7 @@ def run_query(question: str):
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     questions = [
-        # "Show me the first name and diagnosis of patients with high risk flags.",
+        "Show me the first name and diagnosis of patients with high risk flags.",
         # "Show me the names and ages of all patients older than 60.",
         # "List female patients admitted after January 2024.",
         # "How many male patients are currently in the database?",
@@ -125,27 +125,27 @@ if __name__ == "__main__":
         # "Find patients who were admitted in 2023 and still have a high risk flag.",
 
         # Basic
-        "Show me all notes for patient Jane Smith.",
-        "List the names of patients who have more than one note.",
-        "Get all notes written by Dr. Carter.",
+        # "Show me all notes for patient Jane Smith.",
+        # "List the names of patients who have more than one note.",
+        # "Get all notes written by Dr. Carter.",
 
-        # Intermediate
-        "Show the latest note for each patient.",
-        "List patients who had notes added in July 2024.",
-        "How many notes were recorded per doctor in 2024?",
-        "Show patient names with notes mentioning the word 'follow-up'.",
+        # # Intermediate
+        # "Show the latest note for each patient.",
+        # "List patients who had notes added in July 2024.",
+        # "How many notes were recorded per doctor in 2024?",
+        # "Show patient names with notes mentioning the word 'follow-up'.",
 
-        # Advanced
-        "For each patient, show the date of their first and last note.",
-        "Show patients who had more than 1 note in the same month.",
-        "Count how many emergency visits (notes containing 'emergency') occurred in 2024.",
-        "Show patients who have notes mentioning both 'fatigue' and 'improvement'.",
+        # # Advanced
+        # "For each patient, show the date of their first and last note.",
+        # "Show patients who had more than 1 note in the same month.",
+        # "Count how many emergency visits (notes containing 'emergency') occurred in 2024.",
+        # "Show patients who have notes mentioning both 'fatigue' and 'improvement'.",
 
-        # Complex Joins + Aggregations
-        "Show the number of patients per diagnosis category who had at least one note in 2024.",
-        "Find the average time gap (in days) between notes for each patient.",
-        "List patients over 60 years old who had notes written by Dr. Adams.",
-        "Show all patients with diabetes who had more than 2 notes after March 2024."
+        # # Complex Joins + Aggregations
+        # "Show the number of patients per diagnosis category who had at least one note in 2024.",
+        # "Find the average time gap (in days) between notes for each patient.",
+        # "List patients over 60 years old who had notes written by Dr. Adams.",
+        # "Show all patients with diabetes who had more than 2 notes after March 2024."
     ]
 
     for question in questions:

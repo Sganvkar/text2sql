@@ -5,7 +5,7 @@ from langchain.prompts import PromptTemplate
 import logging
 logging.basicConfig(level=logging.DEBUG)
 # 1. Load model
-llm = OllamaLLM(model="sqlcoder:7b", temperature=0)
+llm = OllamaLLM(model="llama3:instruct", temperature=0)
 
 # 2. Connect to SQL Server
 connection_uri = (

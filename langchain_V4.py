@@ -81,6 +81,34 @@ User question:
 """
 
 # -------------------------------------------------------------------
+# Fixer templates
+# -------------------------------------------------------------------
+
+FIX_PROMPT = """
+You are a Microsoft SQL Server expert. The following SQL query failed when executed.
+
+Original user question:
+{question}
+
+SQL query that failed:
+{sql_query}
+
+Error message:
+{error}
+
+Database schema:
+{schema}
+
+Your task:
+- Correct the SQL query so it runs successfully on Microsoft SQL Server.
+- Use only the tables/columns listed in the schema above.
+- Keep the intent of the user question.
+- Do NOT wrap the query in backticks or ```sql blocks.
+- Ensure it is valid T-SQL syntax for Microsoft SQL Server.
+- Only return the corrected SQL query, nothing else.
+"""
+
+# -------------------------------------------------------------------
 # Helper function to generate
 # -------------------------------------------------------------------
 def generate_sql(question: str) -> str:
@@ -102,13 +130,36 @@ def generate_sql(question: str) -> str:
 # -------------------------------------------------------------------
 
 def run_query(question: str):
+    schema_str = db.get_table_info()
     sql_query = generate_sql(question)
 
-    try:
-        result = db.run(sql_query)
-        return result
-    except Exception as e:
-        logging.error(f"Query failed: {e}")
+    for attempt in range(FIXER_MAX_RETRIES):
+        try:
+            result = db.run(sql_query)
+            return result
+        except Exception as e:
+            logging.error(f"Attempt {attempt + 1} failed: {e}")
+
+            if attempt < FIXER_MAX_RETRIES - 1:
+                logging.info("Sending query and error back to model for correction...")
+
+                # Fix query with schema injected
+                fixed_sql = generator.invoke(
+                    FIX_PROMPT.format(
+                        question=question,
+                        sql_query=sql_query,
+                        error=str(e),
+                        schema=schema_str
+                    )
+                )
+
+                # Clean up any backticks or markdown
+                sql_query = clean_sql(fixed_sql)
+
+                logging.info(f"Fixed SQL from generator:\n{sql_query}\n")
+            else:
+                logging.error("All retries failed. Final failed SQL:\n" + sql_query)
+                return "Answer not found."
 
 def clean_sql(sql: str) -> str:
     return sql.strip().strip("`").replace("```sql", "").replace("```", "").strip()
@@ -118,6 +169,7 @@ def clean_sql(sql: str) -> str:
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     questions = [
+        "Show me the first name and diagnosis of patients with high risk flags.",
         "Show me the names and ages of all patients older than 60.",
         "List female patients admitted after January 2024.",
         "How many male patients are currently in the database?",
