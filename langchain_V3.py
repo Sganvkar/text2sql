@@ -6,6 +6,8 @@ from langchain_ollama import OllamaLLM
 from langchain_community.utilities import SQLDatabase
 import logging
 
+FIXER_MAX_RETRIES = 3
+
 # -------------------------------------------------------------------
 # Logging setup
 # -------------------------------------------------------------------
@@ -46,7 +48,7 @@ Rules:
 - Always alias tables when more than one table is used (e.g., Patients AS p, PatientNotes AS pn).
 - For text filters (like gender, diagnosis, risk flags), use LIKE with wildcards unless the value is guaranteed exact.
 - Always format SQL valid for Microsoft SQL Server.
-- Avoid backticks at the start and end of the query.
+- Do NOT wrap the query in backticks or ```sql blocks.
 - Always format DATE or DATETIME fields in the result as DD-MM-YYYY hh:mm:ss AM/PM (12-hour clock) 
   using SQL Server FORMAT() function, e.g. FORMAT([LastVisitDate], 'dd-MM-yyyy hh:mm:ss tt').
 - When grouping by dates, ensure the SELECT and GROUP BY use the same date granularity (e.g. both use FORMAT(..., 'MM-yyyy') for monthly counts).
@@ -54,6 +56,7 @@ Rules:
 - When calculating age, always use DATEDIFF(YEAR, DOB, GETDATE()) so the result is an integer in years.
 - Use JOINs when accessing related data across tables.
 - Use EXISTS only when you need to check for the existence of related rows without counting or selecting their fields.
+- Ensure it is valid T-SQL syntax for Microsoft SQL Server.
 
 Database schema:
 1. Patients
@@ -78,6 +81,34 @@ User question:
 """
 
 # -------------------------------------------------------------------
+# Fixer templates
+# -------------------------------------------------------------------
+
+FIX_PROMPT = """
+You are a Microsoft SQL Server expert. The following SQL query failed when executed.
+
+Original user question:
+{question}
+
+SQL query that failed:
+{sql_query}
+
+Error message:
+{error}
+
+Database schema:
+{schema}
+
+Your task:
+- Correct the SQL query so it runs successfully on Microsoft SQL Server.
+- Use only the tables/columns listed in the schema above.
+- Keep the intent of the user question.
+- Do NOT wrap the query in backticks or ```sql blocks.
+- Ensure it is valid T-SQL syntax for Microsoft SQL Server.
+- Only return the corrected SQL query, nothing else.
+"""
+
+# -------------------------------------------------------------------
 # Helper function to generate
 # -------------------------------------------------------------------
 def generate_sql(question: str) -> str:
@@ -87,43 +118,73 @@ def generate_sql(question: str) -> str:
         GENERATOR_PROMPT.format(schema=schema_str, question=question)
     )
     logging.info(f"Raw SQL from generator:\n{raw_sql}\n")
-    
-    return raw_sql
+
+    # Remove markdown formatting like ```sql ... ```
+    cleaned_sql = raw_sql.strip().strip("`").replace("```sql", "").replace("```", "").strip()
+
+    return cleaned_sql
 
 # -------------------------------------------------------------------
 # Run query
 # -------------------------------------------------------------------
+
 def run_query(question: str):
+    schema_str = db.get_table_info()
     sql_query = generate_sql(question)
-    try:
-        result = db.run(sql_query)
-        return result
-    except Exception as e:
-        logging.error(f"Execution failed: {e}")
+
+    for attempt in range(FIXER_MAX_RETRIES):
+        try:
+            result = db.run(sql_query)
+            return result
+        except Exception as e:
+            logging.error(f"Attempt {attempt + 1} failed: {e}")
+
+            if attempt < FIXER_MAX_RETRIES - 1:
+                logging.info("Sending query and error back to model for correction...")
+
+                # Fix query with schema injected
+                fixed_sql = generator.invoke(
+                    FIX_PROMPT.format(
+                        question=question,
+                        sql_query=sql_query,
+                        error=str(e),
+                        schema=schema_str
+                    )
+                )
+
+                # Clean up any backticks or markdown
+                sql_query = fixed_sql.strip().strip("`").replace("```sql", "").replace("```", "").strip()
+
+                logging.info(f"Fixed SQL from generator:\n{sql_query}\n")
+            else:
+                logging.error("All retries failed. Final failed SQL:\n" + sql_query)
+                return "Answer not found."
+
+
 
 # -------------------------------------------------------------------
 # Main execution
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     questions = [
-        # "Show me the first name and diagnosis of patients with high risk flags.",
-        # "Show me the names and ages of all patients older than 60.",
-        # "List female patients admitted after January 2024.",
-        # "How many male patients are currently in the database?",
+        "Show me the first name and diagnosis of patients with high risk flags.",
+        "Show me the names and ages of all patients older than 60.",
+        "List female patients admitted after January 2024.",
+        "How many male patients are currently in the database?",
 
-        # "Show me patients with a diagnosis of diabetes.",
-        # "List patients with both hypertension and a high risk flag.",
-        # "How many patients have a “Medium” risk flag?",
-        # "Show me patients admitted in the last 30 days.",
-        # "Which patients have not yet been discharged?",
-        # "List patients discharged before June 2023.",
+        "Show me patients with a diagnosis of diabetes.",
+        "List patients with both hypertension and a high risk flag.",
+        "How many patients have a “Medium” risk flag?",
+        "Show me patients admitted in the last 30 days.",
+        "Which patients have not yet been discharged?",
+        "List patients discharged before June 2023.",
 
-        # "What is the average age of patients with high risk flags?",
-        # "Count the number of patients grouped by diagnosis.",
-        # "Show me the number of patients admitted each month in 2024.",
-        # "Show me the first and last names of patients under 40 diagnosed with asthma.",
-        # "List the top 5 most common diagnoses among patients.",
-        # "Find patients who were admitted in 2023 and still have a high risk flag.",
+        "What is the average age of patients with high risk flags?",
+        "Count the number of patients grouped by diagnosis.",
+        "Show me the number of patients admitted each month in 2024.",
+        "Show me the first and last names of patients under 40 diagnosed with asthma.",
+        "List the top 5 most common diagnoses among patients.",
+        "Find patients who were admitted in 2023 and still have a high risk flag.",
 
         # Basic
         "Show me all notes for patient Jane Smith.",
