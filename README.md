@@ -58,6 +58,73 @@ Make sure you have the correct **ODBC Driver 18 for SQL Server** installed.
 
 ---
 
+### 4. Database setup & Seeding
+
+```SQL
+CREATE TABLE Patients (
+    PatientID INT PRIMARY KEY IDENTITY(1,1),
+    FirstName NVARCHAR(50) NOT NULL,
+    LastName NVARCHAR(50) NOT NULL,
+    Gender NVARCHAR(10) NOT NULL,
+    DOB DATE NOT NULL,
+    Diagnosis NVARCHAR(100),
+    RiskLevel NVARCHAR(20),
+    LastVisitDate DATE
+);
+```
+
+```SQL
+INSERT INTO Patients (
+    FirstName, LastName, Gender, DOB, Diagnosis, RiskLevel, LastVisitDate
+)
+VALUES
+('John', 'Doe', 'Male', '1955-06-12', 'Hypertension', 'High', '2024-02-01'),
+('Jane', 'Smith', 'Female', '1980-09-23', 'Diabetes', 'Medium', '2024-03-15'),
+('Michael', 'Johnson', 'Male', '1970-01-10', 'Asthma', 'Low', '2024-01-20'),
+('Emily', 'Davis', 'Female', '1995-04-18', 'Healthy', 'Low', '2024-03-05'),
+('Robert', 'Brown', 'Male', '1965-11-30', 'Heart Disease', 'High', '2024-02-28'),
+('Linda', 'Wilson', 'Female', '2000-07-12', 'Anemia', 'Medium', '2024-03-10'),
+('William', 'Taylor', 'Male', '1950-02-17', 'Diabetes', 'High', '2024-01-30'),
+('Olivia', 'Anderson', 'Female', '1988-12-05', 'Asthma', 'Low', '2024-02-18'),
+('James', 'Thomas', 'Male', '1978-08-22', 'Hypertension', 'Medium', '2024-03-01'),
+('Sophia', 'Martinez', 'Female', '1992-03-14', 'Healthy', 'Low', '2024-02-25');
+
+```
+
+```SQL
+CREATE TABLE PatientNotes (
+    NoteID INT PRIMARY KEY IDENTITY(1,1),
+    PatientID INT NOT NULL,
+    NoteDate DATETIME NOT NULL DEFAULT GETDATE(),
+    NoteText NVARCHAR(MAX) NOT NULL,
+    Provider NVARCHAR(100) NOT NULL, 
+    CONSTRAINT FK_PatientNotes_Patients FOREIGN KEY (PatientID)
+        REFERENCES Patients(PatientID)
+        ON DELETE CASCADE
+);
+```
+
+```SQL
+INSERT INTO PatientNotes (PatientID, NoteDate, NoteText, Provider)
+VALUES
+(2, '2024-03-16 09:15:00', 'Patient shows stable condition. Continue with current medication.', 'Dr. Adams'),
+(2, '2024-06-20 11:45:00', 'Follow-up visit. Insulin dosage adjusted.', 'Dr. Carter'),
+
+(4, '2024-03-06 10:30:00', 'Routine check-up. No issues reported.', 'Dr. Smith'),
+
+(6, '2024-03-11 14:00:00', 'Patient reports fatigue. Iron supplements prescribed.', 'Dr. Taylor'),
+(6, '2024-08-01 16:20:00', 'Follow-up shows improvement in hemoglobin levels.', 'Dr. Taylor'),
+
+(8, '2024-02-19 08:50:00', 'Asthma symptoms mild. Inhaler prescribed.', 'Dr. Johnson'),
+(8, '2024-05-25 09:40:00', 'Emergency visit due to shortness of breath. Condition stabilized.', 'Dr. Adams'),
+
+(10, '2024-02-26 13:10:00', 'Routine annual check-up. Patient healthy.', 'Dr. Smith'),
+(10, '2024-07-15 15:00:00', 'Patient reported dizziness. Tests recommended.', 'Dr. Carter');
+
+```
+
+---
+
 ## 🛠 Development Process
 
 The script was built step by step:
